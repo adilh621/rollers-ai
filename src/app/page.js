@@ -1,103 +1,191 @@
-import Image from "next/image";
+// Page.js (home route)
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import Header from './Components/Header';
+import { supabase } from '../../lib/supabaseClient';
+
+export default function HomePage() {
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [resultImage, setResultImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [params, setParams] = useState({
+    time: '',
+    setting: '',
+    ambiance: '',
+    lighting: ''
+  });
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+
+    getUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => listener?.subscription.unsubscribe();
+  }, []);
+
+  const handleImageChange = (e) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    const file = e.target.files?.[0];
+    const allowedTypes = ['image/png', 'image/jpeg'];
+
+    if (file && allowedTypes.includes(file.type)) {
+      setImage(file);
+      setPreview(URL.createObjectURL(file));
+      setResultImage(null);
+    } else {
+      alert('Only PNG or JPEG images are allowed');
+    }
+  };
+
+  const handleParamChange = (e) => {
+    const { name, value } = e.target;
+    setParams((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async () => {
+    if (!image) {
+      alert('Please upload an image');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const fileExt = image.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `user_uploads/${user.id}/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('uploadedimage')
+        .upload(filePath, image, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw new Error(`Upload failed: ${error.message}`);
+
+      const { data: publicUrlData } = supabase.storage
+        .from('uploadedimage')
+        .getPublicUrl(filePath);
+
+      const imageUrl = publicUrlData.publicUrl;
+
+      const res = await axios.post('https://carsnpoke-backend-production.up.railway.app/generate-image/', {
+        image_url: imageUrl,
+        ...params
+      });
+
+      const base64Data = res.data.image;
+      const imgUrl = `data:image/png;base64,${base64Data}`;
+      setResultImage(imgUrl);
+    } catch (err) {
+      alert('Failed to generate image: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <>
+      <Header />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-8 rounded-lg shadow-lg max-w-sm w-full text-center">
+            <h2 className="text-xl text-white font-semibold mb-4">Please sign in to upload</h2>
+            <button
+              onClick={async () => {
+                await supabase.auth.signInWithOAuth({ provider: 'google' });
+                setShowLoginModal(false);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded"
+            >
+              Sign in with Google
+            </button>
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="mt-4 block text-gray-400 hover:text-white text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center pt-28 px-6 pb-12">
+        <h1 className="text-4xl font-bold mb-6 text-center">Generate AI Rolling Shots of Your Car</h1>
+
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-6">
+          <label className="bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded cursor-pointer inline-block">
+            Upload Image
+            <input
+              type="file"
+              accept="image/png, image/jpeg, image/jpg"
+              onChange={handleImageChange}
+              className="hidden"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </label>
+
+          {['time', 'setting', 'ambiance', 'lighting'].map((param) => (
+            <input
+              key={param}
+              name={param}
+              placeholder={param.charAt(0).toUpperCase() + param.slice(1)}
+              value={params[param]}
+              onChange={handleParamChange}
+              className="p-2 text-white rounded bg-gray-800 placeholder-gray-400"
+            />
+          ))}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-semibold"
           >
-            Read our docs
-          </a>
+            {loading ? 'Generating...' : 'Generate Image'}
+          </button>
+        </div>
+
+        <div className="w-full max-w-2xl border border-gray-700 rounded-lg p-4 bg-gray-900 flex flex-col items-center justify-center min-h-[400px]">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center text-white">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-gray-300">Generating image...</p>
+            </div>
+          ) : resultImage ? (
+            <>
+              <img src={resultImage} alt="Result" className="rounded max-w-full max-h-[480px] mb-4" />
+              <a
+                href={resultImage}
+                download="rollersai_result.png"
+                className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-semibold"
+              >
+                Download Image
+              </a>
+            </>
+          ) : preview ? (
+            <img src={preview} alt="Preview" className="rounded max-w-full max-h-[480px]" />
+          ) : (
+            <p className="text-gray-500">No image selected</p>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    </>
   );
 }
