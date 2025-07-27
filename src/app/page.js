@@ -94,7 +94,7 @@ export default function HomePage() {
 
       const imageUrl = publicUrlData.publicUrl;
 
-      const res = await axios.post(process.env.BACKEND_URL, {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/generate-image/`, {
         image_url: imageUrl,
         ...params
       });
