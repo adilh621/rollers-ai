@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🏎️ rollersAI
 
-## Getting Started
+**rollersAI** is a full-stack web application that allows users to upload an image of their car and receive an AI-generated rolling shot, stylized with custom parameters such as time of day, ambiance, setting, and lighting.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Google OAuth authentication via Supabase  
+- Secure image upload to Supabase Storage  
+- Customizable input parameters (e.g., time, ambiance, lighting)  
+- AI-powered image generation using OpenAI's API  
+- Render-hosted FastAPI backend  
+- Vercel-hosted Next.js frontend  
+- Live progress bar and responsive UI  
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧰 Tech Stack
 
-## Learn More
+- **Frontend**: Next.js, Tailwind CSS, Supabase Auth + Storage, Axios  
+- **Backend**: FastAPI, Uvicorn, OpenAI API, Pillow, Requests  
+- **Hosting**: Vercel (frontend), Render (backend)  
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📂 🧪 Example Flow
+- User signs in via Google
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Uploads car image
 
-## Deploy on Vercel
+- Selects visual parameters
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Backend processes image with OpenAI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Returns stylized rolling shot
+
